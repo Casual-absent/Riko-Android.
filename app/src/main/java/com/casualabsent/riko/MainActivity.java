@@ -1,12 +1,14 @@
 package com.casualabsent.riko;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.content.SharedPreferences;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.KeyEvent;
@@ -22,13 +24,14 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public final class MainActivity extends Activity {
-    private static final int BACKGROUND = Color.rgb(13, 15, 22);
-    private static final int SURFACE = Color.rgb(24, 28, 39);
-    private static final int USER_BUBBLE = Color.rgb(49, 40, 74);
-    private static final int TEXT = Color.rgb(242, 239, 250);
-    private static final int MUTED = Color.rgb(164, 161, 180);
-    private static final int ACCENT = Color.rgb(187, 165, 255);
-    private static final int BORDER = Color.rgb(48, 51, 66);
+    private static final String PREFS_NAME = "riko_settings";
+    private static final String PREF_THEME = "selected_theme";
+
+    private static final String[] THEME_KEYS = {"light", "dark", "red", "green"};
+    private static final String[] THEME_LABELS = {"Light", "Dark", "Red", "Green"};
+
+    private Palette palette;
+    private String selectedTheme;
 
     private LinearLayout messageList;
     private ScrollView conversationScroll;
@@ -39,14 +42,22 @@ public final class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        SharedPreferences preferences = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        selectedTheme = preferences.getString(PREF_THEME, "dark");
+        palette = paletteFor(selectedTheme);
+
         Window window = getWindow();
-        window.setStatusBarColor(BACKGROUND);
-        window.setNavigationBarColor(BACKGROUND);
+        window.setStatusBarColor(palette.background);
+        window.setNavigationBarColor(palette.background);
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
+        int systemUiVisibility = palette.lightSystemBars
+                ? View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR
+                : 0;
+        window.getDecorView().setSystemUiVisibility(systemUiVisibility);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(BACKGROUND);
+        root.setBackgroundColor(palette.background);
         installWindowInsets(root);
 
         root.addView(createHeader(), new LinearLayout.LayoutParams(
@@ -80,6 +91,79 @@ public final class MainActivity extends Activity {
                 false);
     }
 
+    private Palette paletteFor(String theme) {
+        if ("light".equalsIgnoreCase(theme)) {
+            return new Palette(
+                    Color.rgb(245, 243, 249),
+                    Color.rgb(255, 255, 255),
+                    Color.rgb(232, 224, 249),
+                    Color.rgb(38, 34, 48),
+                    Color.rgb(112, 106, 126),
+                    Color.rgb(117, 82, 199),
+                    Color.rgb(222, 217, 233),
+                    Color.WHITE,
+                    true);
+        }
+        if ("red".equalsIgnoreCase(theme)) {
+            return new Palette(
+                    Color.rgb(22, 15, 18),
+                    Color.rgb(37, 23, 29),
+                    Color.rgb(72, 33, 43),
+                    Color.rgb(255, 240, 242),
+                    Color.rgb(198, 165, 173),
+                    Color.rgb(255, 116, 140),
+                    Color.rgb(73, 48, 58),
+                    Color.rgb(36, 16, 22),
+                    false);
+        }
+        if ("green".equalsIgnoreCase(theme)) {
+            return new Palette(
+                    Color.rgb(13, 22, 18),
+                    Color.rgb(24, 38, 31),
+                    Color.rgb(33, 67, 51),
+                    Color.rgb(239, 250, 242),
+                    Color.rgb(165, 189, 175),
+                    Color.rgb(131, 215, 167),
+                    Color.rgb(48, 71, 58),
+                    Color.rgb(16, 32, 23),
+                    false);
+        }
+        return new Palette(
+                Color.rgb(13, 15, 22),
+                Color.rgb(24, 28, 39),
+                Color.rgb(49, 40, 74),
+                Color.rgb(242, 239, 250),
+                Color.rgb(164, 161, 180),
+                Color.rgb(187, 165, 255),
+                Color.rgb(48, 51, 66),
+                Color.rgb(21, 18, 31),
+                false);
+    }
+
+    private void showThemePicker() {
+        int selectedIndex = 1;
+        for (int i = 0; i < THEME_KEYS.length; i++) {
+            if (THEME_KEYS[i].equalsIgnoreCase(selectedTheme)) {
+                selectedIndex = i;
+                break;
+            }
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("Appearance")
+                .setSingleChoiceItems(THEME_LABELS, selectedIndex, (dialog, which) -> {
+                    selectedTheme = THEME_KEYS[which];
+                    getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                            .edit()
+                            .putString(PREF_THEME, selectedTheme)
+                            .apply();
+                    dialog.dismiss();
+                    recreate();
+                })
+                .setNegativeButton("Close", null)
+                .show();
+    }
+
     private View createHeader() {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -88,22 +172,22 @@ public final class MainActivity extends Activity {
 
         TextView logo = new TextView(this);
         logo.setText("R");
-        logo.setTextColor(Color.rgb(21, 18, 31));
+        logo.setTextColor(palette.onAccent);
         logo.setTextSize(22);
         logo.setTypeface(Typeface.create("sans-serif-black", Typeface.NORMAL));
         logo.setGravity(Gravity.CENTER);
-        logo.setBackground(shape(ACCENT, dp(16), 0, 0));
+        logo.setBackground(shape(palette.accent, dp(16), 0, 0));
         header.addView(logo, new LinearLayout.LayoutParams(dp(46), dp(46)));
 
         LinearLayout titleGroup = new LinearLayout(this);
         titleGroup.setOrientation(LinearLayout.VERTICAL);
         titleGroup.setPadding(dp(12), 0, 0, 0);
 
-        TextView title = makeText("RIKO", 19, TEXT);
+        TextView title = makeText("RIKO", 19, palette.text);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         titleGroup.addView(title);
 
-        TextView subtitle = makeText("ANDROID COMPANION", 10, MUTED);
+        TextView subtitle = makeText("ANDROID COMPANION", 10, palette.muted);
         subtitle.setLetterSpacing(0.12f);
         LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -114,12 +198,16 @@ public final class MainActivity extends Activity {
         header.addView(titleGroup, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView buildTag = makeText("FOUNDATION 0.1", 10, ACCENT);
-        buildTag.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        buildTag.setGravity(Gravity.CENTER);
-        buildTag.setPadding(dp(10), dp(7), dp(10), dp(7));
-        buildTag.setBackground(shape(SURFACE, dp(20), BORDER, dp(1)));
-        header.addView(buildTag);
+        TextView themeButton = makeText(selectedTheme.toUpperCase() + "  ▾", 10, palette.accent);
+        themeButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        themeButton.setGravity(Gravity.CENTER);
+        themeButton.setPadding(dp(10), dp(9), dp(10), dp(9));
+        themeButton.setBackground(shape(palette.surface, dp(20), palette.border, dp(1)));
+        themeButton.setContentDescription("Choose appearance theme. Current theme: " + selectedTheme);
+        themeButton.setFocusable(true);
+        themeButton.setClickable(true);
+        themeButton.setOnClickListener(view -> showThemePicker());
+        header.addView(themeButton);
 
         return header;
     }
@@ -128,12 +216,12 @@ public final class MainActivity extends Activity {
         LinearLayout panel = new LinearLayout(this);
         panel.setOrientation(LinearLayout.VERTICAL);
         panel.setPadding(dp(18), dp(12), dp(18), dp(14));
-        panel.setBackground(shape(SURFACE, dp(18), BORDER, dp(1)));
+        panel.setBackground(shape(palette.surface, dp(18), palette.border, dp(1)));
 
         previewStatus = makeText(
                 "LOCAL PREVIEW · NO AI REQUESTS ARE MADE",
                 10,
-                MUTED);
+                palette.muted);
         previewStatus.setLetterSpacing(0.04f);
         LinearLayout.LayoutParams statusParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -146,15 +234,15 @@ public final class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
 
         messageInput = new EditText(this);
-        messageInput.setTextColor(TEXT);
-        messageInput.setHintTextColor(MUTED);
+        messageInput.setTextColor(palette.text);
+        messageInput.setHintTextColor(palette.muted);
         messageInput.setHint("Message Riko…");
         messageInput.setTextSize(15);
         messageInput.setSingleLine(false);
         messageInput.setMaxLines(4);
         messageInput.setMinHeight(dp(52));
         messageInput.setPadding(dp(15), dp(12), dp(15), dp(12));
-        messageInput.setBackground(shape(BACKGROUND, dp(14), BORDER, dp(1)));
+        messageInput.setBackground(shape(palette.background, dp(14), palette.border, dp(1)));
         messageInput.setInputType(
                 InputType.TYPE_CLASS_TEXT
                         | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
@@ -165,10 +253,10 @@ public final class MainActivity extends Activity {
                 0, dp(54), 1f);
         row.addView(messageInput, inputParams);
 
-        TextView sendButton = makeText("Send", 14, Color.rgb(21, 18, 31));
+        TextView sendButton = makeText("Send", 14, palette.onAccent);
         sendButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         sendButton.setGravity(Gravity.CENTER);
-        sendButton.setBackground(shape(ACCENT, dp(14), 0, 0));
+        sendButton.setBackground(shape(palette.accent, dp(14), 0, 0));
         sendButton.setContentDescription("Send message");
         sendButton.setFocusable(true);
         sendButton.setClickable(true);
@@ -218,19 +306,19 @@ public final class MainActivity extends Activity {
         group.setOrientation(LinearLayout.VERTICAL);
         group.setGravity(fromUser ? Gravity.END : Gravity.START);
 
-        TextView role = makeText(label, 10, fromUser ? ACCENT : MUTED);
+        TextView role = makeText(label, 10, fromUser ? palette.accent : palette.muted);
         role.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         role.setLetterSpacing(0.07f);
         group.addView(role);
 
-        TextView body = makeText(text, 15, TEXT);
+        TextView body = makeText(text, 15, palette.text);
         body.setTextIsSelectable(true);
         body.setLineSpacing(dp(3), 1.0f);
         body.setPadding(dp(15), dp(12), dp(15), dp(12));
         body.setBackground(shape(
-                fromUser ? USER_BUBBLE : SURFACE,
+                fromUser ? palette.userBubble : palette.surface,
                 dp(17),
-                fromUser ? 0 : BORDER,
+                fromUser ? 0 : palette.border,
                 fromUser ? 0 : dp(1)));
         body.setMaxWidth(getResources().getDisplayMetrics().widthPixels - dp(76));
 
@@ -302,5 +390,38 @@ public final class MainActivity extends Activity {
 
     private int dp(float value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    private static final class Palette {
+        final int background;
+        final int surface;
+        final int userBubble;
+        final int text;
+        final int muted;
+        final int accent;
+        final int border;
+        final int onAccent;
+        final boolean lightSystemBars;
+
+        Palette(
+                int background,
+                int surface,
+                int userBubble,
+                int text,
+                int muted,
+                int accent,
+                int border,
+                int onAccent,
+                boolean lightSystemBars) {
+            this.background = background;
+            this.surface = surface;
+            this.userBubble = userBubble;
+            this.text = text;
+            this.muted = muted;
+            this.accent = accent;
+            this.border = border;
+            this.onAccent = onAccent;
+            this.lightSystemBars = lightSystemBars;
+        }
     }
 }
