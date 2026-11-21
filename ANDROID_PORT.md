@@ -1,8 +1,8 @@
 # Riko Android port
 
-## Current checkpoint: 0.3.0 — provider presets (device build verification pending)
+## Current checkpoint: 0.4.0 — push-to-talk voice input (build/device verification pending)
 
-The 0.1.0 Android foundation and four persistent appearance themes were installed and tested on the target Redmi phone. The 0.2.0 chat client was subsequently built and used successfully with OpenRouter; the user confirmed a live response using `inclusionai/ling-3.2-flash:free`. This 0.3.0 revision adds explicit OpenAI, OpenRouter, and Custom OpenAI-compatible provider presets. The OpenRouter preset fills the endpoint and the tested model, while both fields remain editable. The 0.3.0 source is committed to `android-port` and still needs a fresh CodeOnGo build and on-device selector test. Voice input/output and the VRM avatar are not connected yet.
+The 0.1.0 Android foundation and four persistent appearance themes were installed and tested on the target Redmi phone. The 0.2.0 chat client was built and used successfully with OpenRouter; the user confirmed a live response using `inclusionai/ling-3.2-flash:free`. Provider presets were added and the user confirmed the 0.3.0 update working on-device. This 0.4.0 revision adds a push-to-talk button using Android's system speech-recognition activity. Recognized text is inserted into the composer for review and manual sending; this milestone does not send automatically, record continuously, or implement speech output. It relies on an installed system speech-recognition provider and does not add a direct microphone permission to the app manifest. Build and on-device verification remain pending.
 
 The original Python desktop implementation remains in the repository and is not modified by the Android application.
 
@@ -74,14 +74,14 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 - Requests require HTTPS and the normal Android `INTERNET` permission. Cleartext traffic remains disabled.
 - Streaming replies are capped at 32,000 characters; connection and read timeouts are 20 and 120 seconds respectively.
 - The Android client currently targets the OpenAI-compatible **Chat Completions** SSE format. It does not implement the desktop Responses API, tool/function calling, image inputs, audio, or provider-specific non-Bearer authentication.
-- Voice input/output and the 3D VRM avatar remain unimplemented.
+- 0.4.0 adds push-to-talk speech recognition via the Android system recognition activity. Results are inserted into the composer for review and manual send; recognition availability depends on the device's installed speech service. No direct microphone permission or continuous recording is added by this milestone. Speech output and the 3D VRM avatar remain unimplemented.
 
 ## Implementation order
 
 1. **Foundation (verified on device):** Gradle project, Android Activity, app launch and CodeOnGo build.
 2. **Chat and model (verified by user on device):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states. A live OpenRouter request using the Ling 3.2 Flash free model succeeded.
 3. **Provider presets (0.3.0 implementation committed; fresh device build pending):** OpenAI, OpenRouter, and Custom OpenAI-compatible presets; provider selection fills endpoint and starter model, while retaining editable fields and secure key storage.
-4. **Voice input:** Android `AudioRecord` or platform recording APIs with push-to-talk first; cloud speech recognition before considering on-device Whisper.
+4. **Voice input (0.4.0 implementation; verification pending):** push-to-talk using Android system `RecognizerIntent`; recognition inserts text into the composer for review and manual sending, with no continuous listening or app-owned recording permission.
 5. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
 6. **Avatar:** package a tested Three.js / three-vrm web bundle locally, load it in a WebView, and bridge only the minimum required playback/expression events.
 7. **Device tuning:** cap avatar rendering at 30 FPS, lower render pixel ratio and texture sizes, pause rendering when the Activity is hidden, and measure memory, temperature and battery use on the target handset.
