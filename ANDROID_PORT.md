@@ -1,8 +1,8 @@
 # Riko Android port
 
-## Current checkpoint: 0.4.0 — push-to-talk voice input (build/device verification pending)
+## Current checkpoint: 0.5.0 — native Android text-to-speech (build/device verification pending)
 
-The 0.1.0 Android foundation and four persistent appearance themes were installed and tested on the target Redmi phone. The 0.2.0 chat client was built and used successfully with OpenRouter; the user confirmed a live response using `inclusionai/ling-3.2-flash:free`. Provider presets were added and the user confirmed the 0.3.0 update working on-device. This 0.4.0 revision adds a push-to-talk button using Android's system speech-recognition activity. Recognized text is inserted into the composer for review and manual sending; this milestone does not send automatically, record continuously, or implement speech output. It relies on an installed system speech-recognition provider and does not add a direct microphone permission to the app manifest. Build and on-device verification remain pending.
+The 0.1.0 Android foundation and four persistent appearance themes were installed and tested on the target Redmi phone. The 0.2.0 chat client was built and used successfully with OpenRouter; the user confirmed a live response using `inclusionai/ling-3.2-flash:free`. Provider presets were added and the user confirmed the 0.3.0 update working on-device. The user reports the 0.4.0 push-to-talk voice-input feature is working for now. This 0.5.0 revision adds optional native Android text-to-speech for completed assistant replies. Speech is off by default, can be enabled in Riko settings, uses the device's installed TTS engine and default locale, and splits long replies into queued chunks. Playback stops when a new request starts, the app is paused, speech is disabled, or the Activity is destroyed. Build and on-device verification for 0.5.0 remain pending.
 
 The original Python desktop implementation remains in the repository and is not modified by the Android application.
 
@@ -80,9 +80,9 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 
 1. **Foundation (verified on device):** Gradle project, Android Activity, app launch and CodeOnGo build.
 2. **Chat and model (verified by user on device):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states. A live OpenRouter request using the Ling 3.2 Flash free model succeeded.
-3. **Provider presets (0.3.0 implementation committed; fresh device build pending):** OpenAI, OpenRouter, and Custom OpenAI-compatible presets; provider selection fills endpoint and starter model, while retaining editable fields and secure key storage.
-4. **Voice input (0.4.0 implementation; verification pending):** push-to-talk using Android system `RecognizerIntent`; recognition inserts text into the composer for review and manual sending, with no continuous listening or app-owned recording permission.
-5. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
+3. **Provider presets (0.3.0, verified by the user on-device):** OpenAI, OpenRouter, and Custom OpenAI-compatible presets; provider selection fills endpoint and starter model, while retaining editable fields and secure key storage.
+4. **Voice input (0.4.0, reported working by the user):** push-to-talk using Android system `RecognizerIntent`; recognition inserts text into the composer for review and manual sending, with no continuous listening or app-owned recording permission.
+5. **Voice output (0.5.0 implementation; build/device verification pending):** optional Android-native TTS for complete assistant replies, with chunked playback and lifecycle cleanup.
 6. **Avatar:** package a tested Three.js / three-vrm web bundle locally, load it in a WebView, and bridge only the minimum required playback/expression events.
 7. **Device tuning:** cap avatar rendering at 30 FPS, lower render pixel ratio and texture sizes, pause rendering when the Activity is hidden, and measure memory, temperature and battery use on the target handset.
 
