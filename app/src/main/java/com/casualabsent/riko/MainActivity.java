@@ -3,6 +3,7 @@ package com.casualabsent.riko;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.content.Intent;
 import android.content.ActivityNotFoundException;
 import android.database.sqlite.SQLiteException;
@@ -20,12 +21,14 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -43,6 +46,7 @@ public final class MainActivity extends Activity {
     private static final String PREF_MODEL = "api_model";
     private static final String PREF_PROVIDER = "api_provider";
     private static final String PREF_SYSTEM_PROMPT = "system_prompt";
+    private static final String PREF_SPEAK_REPLIES = "speak_replies";
     private static final int REQUEST_SPEECH_INPUT = 4101;
 
     private static final String DEFAULT_ENDPOINT =
@@ -80,6 +84,8 @@ public final class MainActivity extends Activity {
     private SecureCredentialStore credentialStore;
     private ChatDatabase chatDatabase;
     private ExecutorService networkExecutor;
+    private TextToSpeech textToSpeech;
+    private boolean textToSpeechReady;
     private boolean requestInFlight;
 
     @Override
@@ -90,6 +96,18 @@ public final class MainActivity extends Activity {
         credentialStore = new SecureCredentialStore(this);
         chatDatabase = new ChatDatabase(this);
         networkExecutor = Executors.newSingleThreadExecutor();
+        textToSpeech = new TextToSpeech(this, status -> {
+            if (status != TextToSpeech.SUCCESS
+                    || isFinishing()
+                    || isDestroyed()
+                    || textToSpeech == null) {
+                textToSpeechReady = false;
+                return;
+            }
+            int languageStatus = textToSpeech.setLanguage(java.util.Locale.getDefault());
+            textToSpeechReady = languageStatus != TextToSpeech.LANG_MISSING_DATA
+                    && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED;
+        });
 
         selectedTheme = preferences.getString(PREF_THEME, "dark");
         palette = paletteFor(selectedTheme);
@@ -397,6 +415,26 @@ public final class MainActivity extends Activity {
                         | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES,
                 true);
 
+        CheckBox speakRepliesToggle = new CheckBox(this);
+        speakRepliesToggle.setText("Read Riko's replies aloud");
+        speakRepliesToggle.setTextColor(palette.text);
+        speakRepliesToggle.setTextSize(14);
+        speakRepliesToggle.setButtonTintList(ColorStateList.valueOf(palette.accent));
+        speakRepliesToggle.setPadding(0, dp(8), 0, dp(4));
+        speakRepliesToggle.setChecked(preferences.getBoolean(PREF_SPEAK_REPLIES, false));
+        form.addView(speakRepliesToggle);
+
+        TextView speechNote = makeText(
+                "Uses your Android text-to-speech engine. Voice and language availability "
+                        + "depend on the speech services installed on your phone.",
+                11,
+                palette.muted);
+        LinearLayout.LayoutParams speechNoteParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        speechNoteParams.bottomMargin = dp(8);
+        form.addView(speechNote, speechNoteParams);
+
         TextView securityNote = makeText(
                 "Only one provider API key is stored at a time. Replace it when switching "
                         + "providers. The key is encrypted with Android Keystore; use HTTPS "
@@ -407,7 +445,7 @@ public final class MainActivity extends Activity {
         form.addView(securityNote);
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this)
-                .setTitle("AI connection")
+                .setTitle("Riko settings")
                 .setView(scroll)
                 .setPositiveButton("Save", null)
                 .setNegativeButton("Cancel", null);
@@ -447,7 +485,11 @@ public final class MainActivity extends Activity {
                             .putString(PREF_MODEL, model)
                             .putString(PREF_PROVIDER, PROVIDER_KEYS[selectedProvider[0]])
                             .putString(PREF_SYSTEM_PROMPT, systemPrompt)
+                            .putBoolean(PREF_SPEAK_REPLIES, speakRepliesToggle.isChecked())
                             .apply();
+                    if (!speakRepliesToggle.isChecked()) {
+                        stopSpeech();
+                    }
 
                     updateConnectionStatus();
                     dialog.dismiss();
@@ -672,6 +714,7 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        stopSpeech();
         requestInFlight = true;
         setComposerBusy(true);
         setStatus("RIKO IS THINKING · " + model);
@@ -716,6 +759,7 @@ public final class MainActivity extends Activity {
                         return;
                     }
                     assistantBubble.setText(reply);
+                    speakReplyIfEnabled(reply);
                     requestInFlight = false;
                     setComposerBusy(false);
                     setStatus(saved
@@ -740,6 +784,73 @@ public final class MainActivity extends Activity {
                 });
             }
         });
+    }
+
+    private void speakReplyIfEnabled(String reply) {
+        if (!preferences.getBoolean(PREF_SPEAK_REPLIES, false)
+                || reply == null
+                || reply.trim().isEmpty()) {
+            return;
+        }
+        if (textToSpeech == null || !textToSpeechReady) {
+            Toast.makeText(this,
+                    "Text-to-speech is not ready. Check your Android speech engine and language data.",
+                    Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        stopSpeech();
+        List<String> chunks = splitSpeechText(
+                reply,
+                TextToSpeech.getMaxSpeechInputLength());
+        for (int i = 0; i < chunks.size(); i++) {
+            int queueMode = i == 0
+                    ? TextToSpeech.QUEUE_FLUSH
+                    : TextToSpeech.QUEUE_ADD;
+            int result = textToSpeech.speak(
+                    chunks.get(i),
+                    queueMode,
+                    null,
+                    "riko_reply_" + System.currentTimeMillis() + "_" + i);
+            if (result == TextToSpeech.ERROR) {
+                stopSpeech();
+                Toast.makeText(this, "Riko could not start speech playback.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+    }
+
+    private List<String> splitSpeechText(String text, int maxLength) {
+        String cleanText = text.trim();
+        List<String> chunks = new ArrayList<>();
+        int limit = Math.max(1, maxLength);
+        int offset = 0;
+        while (offset < cleanText.length()) {
+            int end = Math.min(offset + limit, cleanText.length());
+            if (end < cleanText.length()) {
+                int boundary = cleanText.lastIndexOf(' ', end);
+                if (boundary > offset) {
+                    end = boundary;
+                }
+            }
+            String chunk = cleanText.substring(offset, end).trim();
+            if (!chunk.isEmpty()) {
+                chunks.add(chunk);
+            }
+            offset = end;
+            while (offset < cleanText.length()
+                    && Character.isWhitespace(cleanText.charAt(offset))) {
+                offset++;
+            }
+        }
+        return chunks;
+    }
+
+    private void stopSpeech() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+        }
     }
 
     private void setComposerBusy(boolean busy) {
@@ -936,7 +1047,19 @@ public final class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        stopSpeech();
+        super.onPause();
+    }
+
+    @Override
     protected void onDestroy() {
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+            textToSpeechReady = false;
+        }
         if (networkExecutor != null) {
             networkExecutor.shutdownNow();
         }
