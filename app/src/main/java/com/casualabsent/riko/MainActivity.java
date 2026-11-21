@@ -7,6 +7,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -155,9 +156,9 @@ public final class MainActivity extends Activity {
         messageInput.setPadding(dp(15), dp(12), dp(15), dp(12));
         messageInput.setBackground(shape(BACKGROUND, dp(14), BORDER, dp(1)));
         messageInput.setInputType(
-                EditorInfo.TYPE_CLASS_TEXT
-                        | EditorInfo.TYPE_TEXT_FLAG_CAP_SENTENCES
-                        | EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE);
+                InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                        | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         messageInput.setImeOptions(EditorInfo.IME_ACTION_SEND);
 
         LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(
