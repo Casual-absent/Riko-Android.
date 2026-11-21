@@ -327,7 +327,7 @@ public final class MainActivity extends Activity {
 
         TextView securityNote = makeText(
                 "The API key is encrypted with a key held by Android Keystore. "
-                        + "Use an HTTPS Chat Completions endpoint. Never share your key in chat.",
+                        + "Use HTTPS. Put the key only in the API key field, not in the URL.",
                 12,
                 palette.muted);
         securityNote.setPadding(0, dp(10), 0, dp(8));
@@ -444,8 +444,8 @@ public final class MainActivity extends Activity {
                     || url.getHost().trim().isEmpty()) {
                 return "Use a valid HTTPS Chat Completions URL.";
             }
-            if (url.getQuery() != null || url.getUserInfo() != null) {
-                return "Do not put API keys or credentials in the URL.";
+            if (url.getUserInfo() != null) {
+                return "Do not put credentials in the URL. Use the API key field.";
             }
         } catch (MalformedURLException exception) {
             return "Enter a valid full URL.";
