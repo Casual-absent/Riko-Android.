@@ -1,3 +1,13 @@
+## Android port status
+
+This repository now contains a separate native Android project in `app/`; the original Python desktop implementation below is retained as the upstream reference and is not the Android runtime.
+
+- **Android setup and CodeOnGo build instructions:** [ANDROID_PORT.md](ANDROID_PORT.md)
+- **Current checkpoint:** native launchable foundation only. The AI backend, microphone, speech synthesis, memory and VRM avatar are not connected yet.
+- **Working branch:** `android-port`
+
+---
+
 <picture>
   <source width="100%" srcset="./docs/banner-dark.png" media="(prefers-color-scheme: dark)" />
   <source width="100%" srcset="./docs/banner-light.png" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)" />
