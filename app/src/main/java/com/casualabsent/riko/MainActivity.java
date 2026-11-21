@@ -379,7 +379,7 @@ public final class MainActivity extends Activity {
                 false);
         keyField.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         keyField.setHint(credentialStore.hasSecret()
-                ? "Saved securely — leave blank to keep it"
+                ? "Saved securely — replace when switching providers"
                 : "Paste your provider API key");
 
         EditText promptField = addSettingsField(
@@ -392,8 +392,9 @@ public final class MainActivity extends Activity {
                 true);
 
         TextView securityNote = makeText(
-                "The API key is encrypted with a key held by Android Keystore. "
-                        + "Use HTTPS. Put the key only in the API key field, not in the URL.",
+                "Only one provider API key is stored at a time. Replace it when switching "
+                        + "providers. The key is encrypted with Android Keystore; use HTTPS "
+                        + "and enter it only in this field, never in the URL.",
                 12,
                 palette.muted);
         securityNote.setPadding(0, dp(10), 0, dp(8));
