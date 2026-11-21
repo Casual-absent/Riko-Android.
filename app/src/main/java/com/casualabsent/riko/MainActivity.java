@@ -105,6 +105,10 @@ public final class MainActivity extends Activity {
                 return;
             }
             int languageStatus = textToSpeech.setLanguage(java.util.Locale.getDefault());
+            if (languageStatus == TextToSpeech.LANG_MISSING_DATA
+                    || languageStatus == TextToSpeech.LANG_NOT_SUPPORTED) {
+                languageStatus = textToSpeech.setLanguage(java.util.Locale.US);
+            }
             textToSpeechReady = languageStatus != TextToSpeech.LANG_MISSING_DATA
                     && languageStatus != TextToSpeech.LANG_NOT_SUPPORTED;
         });
@@ -256,7 +260,8 @@ public final class MainActivity extends Activity {
         header.addView(titleGroup, new LinearLayout.LayoutParams(0,
                 LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        TextView settingsButton = makeHeaderButton("API", "Configure AI endpoint and key");
+        TextView settingsButton = makeHeaderButton(
+                "Settings", "Configure AI connection and speech output");
         settingsButton.setOnClickListener(view -> showSettingsDialog());
         header.addView(settingsButton);
 
@@ -425,8 +430,8 @@ public final class MainActivity extends Activity {
         form.addView(speakRepliesToggle);
 
         TextView speechNote = makeText(
-                "Uses your Android text-to-speech engine. Voice and language availability "
-                        + "depend on the speech services installed on your phone.",
+                "Uses your Android text-to-speech engine. It prefers your phone's language "
+                        + "and falls back to English when available.",
                 11,
                 palette.muted);
         LinearLayout.LayoutParams speechNoteParams = new LinearLayout.LayoutParams(
