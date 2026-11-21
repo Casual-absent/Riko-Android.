@@ -44,9 +44,9 @@ public final class MainActivity extends Activity {
     private static final String DEFAULT_MODEL = "gpt-4.1-mini";
     // Preserved from the original desktop project's character_config.yaml.
     private static final String DEFAULT_SYSTEM_PROMPT =
-            "You are a helpful assistant named Riko.\\n"
-            + "You speak like a snarky anime girl.\\n"
-            + "Always refer to the user as \\"senpai\\".";
+            "You are a helpful assistant named Riko.\n"
+            + "You speak like a snarky anime girl.\n"
+            + "Always refer to the user as \"senpai\".";
 
     private static final String[] THEME_KEYS = {"light", "dark", "red", "green"};
     private static final String[] THEME_LABELS = {"Light", "Dark", "Red", "Green"};
@@ -314,7 +314,6 @@ public final class MainActivity extends Activity {
         keyField.setHint(credentialStore.hasSecret()
                 ? "Saved securely — leave blank to keep it"
                 : "Paste your provider API key");
-        keyField.setAutofillHints((String[]) null);
 
         EditText promptField = addSettingsField(
                 form,
