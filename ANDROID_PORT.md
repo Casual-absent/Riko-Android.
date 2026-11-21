@@ -78,7 +78,7 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 
 ## Implementation order
 
-1. **Foundation (current):** Gradle project, Android Activity, app launch and CodeOnGo build.
+1. **Foundation (verified on device):** Gradle project, Android Activity, app launch and CodeOnGo build.
 2. **Chat and model (implementation committed; build/live API verification pending):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states.
 3. **Voice input:** Android `AudioRecord` or platform recording APIs with push-to-talk first; cloud speech recognition before considering on-device Whisper.
 4. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
