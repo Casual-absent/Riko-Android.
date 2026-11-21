@@ -3,6 +3,8 @@ package com.casualabsent.riko;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.SharedPreferences;
+import android.content.Intent;
+import android.content.ActivityNotFoundException;
 import android.database.sqlite.SQLiteException;
 import android.graphics.Color;
 import android.graphics.Insets;
@@ -23,12 +25,14 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.speech.RecognizerIntent;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,6 +43,7 @@ public final class MainActivity extends Activity {
     private static final String PREF_MODEL = "api_model";
     private static final String PREF_PROVIDER = "api_provider";
     private static final String PREF_SYSTEM_PROMPT = "system_prompt";
+    private static final int REQUEST_SPEECH_INPUT = 4101;
 
     private static final String DEFAULT_ENDPOINT =
             "https://api.openai.com/v1/chat/completions";
@@ -69,6 +74,7 @@ public final class MainActivity extends Activity {
     private EditText messageInput;
     private TextView connectionStatus;
     private TextView sendButton;
+    private TextView voiceButton;
 
     private SharedPreferences preferences;
     private SecureCredentialStore credentialStore;
@@ -583,6 +589,18 @@ public final class MainActivity extends Activity {
                 0, dp(54), 1f);
         row.addView(messageInput, inputParams);
 
+        voiceButton = makeText("Mic", 13, palette.accent);
+        voiceButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        voiceButton.setGravity(Gravity.CENTER);
+        voiceButton.setBackground(shape(palette.background, dp(14), palette.border, dp(1)));
+        voiceButton.setContentDescription("Use speech recognition to dictate a message");
+        voiceButton.setFocusable(true);
+        voiceButton.setClickable(true);
+        voiceButton.setOnClickListener(view -> startVoiceInput());
+        LinearLayout.LayoutParams voiceParams = new LinearLayout.LayoutParams(dp(56), dp(54));
+        voiceParams.leftMargin = dp(8);
+        row.addView(voiceButton, voiceParams);
+
         sendButton = makeText("Send", 14, palette.onAccent);
         sendButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         sendButton.setGravity(Gravity.CENTER);
@@ -593,8 +611,8 @@ public final class MainActivity extends Activity {
         sendButton.setOnClickListener(view -> sendMessage());
 
         LinearLayout.LayoutParams sendParams = new LinearLayout.LayoutParams(
-                dp(72), dp(54));
-        sendParams.leftMargin = dp(9);
+                dp(68), dp(54));
+        sendParams.leftMargin = dp(8);
         row.addView(sendButton, sendParams);
 
         panel.addView(row);
@@ -726,9 +744,55 @@ public final class MainActivity extends Activity {
 
     private void setComposerBusy(boolean busy) {
         messageInput.setEnabled(!busy);
+        if (voiceButton != null) {
+            voiceButton.setEnabled(!busy);
+            voiceButton.setAlpha(busy ? 0.65f : 1.0f);
+        }
         sendButton.setEnabled(!busy);
         sendButton.setText(busy ? "Wait…" : "Send");
         sendButton.setAlpha(busy ? 0.65f : 1.0f);
+    }
+
+    private void startVoiceInput() {
+        if (requestInFlight) {
+            return;
+        }
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE,
+                java.util.Locale.getDefault());
+        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your message to Riko");
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        try {
+            startActivityForResult(intent, REQUEST_SPEECH_INPUT);
+        } catch (ActivityNotFoundException error) {
+            Toast.makeText(this,
+                    "Speech recognition is not available on this device.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_SPEECH_INPUT) {
+            return;
+        }
+        if (resultCode == RESULT_OK && data != null) {
+            ArrayList<String> results = data.getStringArrayListExtra(
+                    RecognizerIntent.EXTRA_RESULTS);
+            if (results != null && !results.isEmpty()) {
+                String spokenText = results.get(0);
+                if (spokenText != null && !spokenText.trim().isEmpty()) {
+                    messageInput.setText(spokenText.trim());
+                    messageInput.setSelection(messageInput.getText().length());
+                    messageInput.requestFocus();
+                    setStatus("VOICE INPUT READY · REVIEW BEFORE SENDING");
+                }
+            }
+        }
     }
 
     private void updateConnectionStatus() {
