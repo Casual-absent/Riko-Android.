@@ -1,8 +1,8 @@
 # Riko Android port
 
-## Current checkpoint: 0.1.0 — native foundation
+## Current checkpoint: 0.2.0 — streaming AI chat (device build verification pending)
 
-The Android application now has its own Gradle project in the repository root and a native Android entry screen in `app/`. The current APK target is an interface foundation only. It does **not** yet call an AI model, record audio, synthesize speech, persist chat history, or render a VRM avatar. The message composer is explicitly marked as preview-only so it cannot be mistaken for a working AI conversation.
+The 0.1.0 Android foundation and four persistent appearance themes have been installed and tested on the target Redmi phone. This revision adds a configurable OpenAI-compatible Chat Completions client with server-sent-event streaming, Android Keystore-backed API-key encryption, and bounded local conversation history. The new source has been committed to `android-port`; this revision still needs a fresh CodeOnGo build and live API test before it can be called verified. Voice input/output and the VRM avatar are not connected yet.
 
 The original Python desktop implementation remains in the repository and is not modified by the Android application.
 
@@ -40,7 +40,12 @@ Android Gradle Plugin 8.13 requires Gradle 8.13 and JDK 17, and supports Android
 2. Open/import the **repository root** — the folder containing `settings.gradle.kts`.
 3. Make sure CodeOnGo is using JDK 17 or 21 and Gradle 8.13.
 4. Install Android SDK Platform 36 and Android SDK Build-Tools 36.0.0 if they are not already installed.
-5. Sync the project, then run the Gradle task `:app:assembleDebug`.
+5. On the AndroidIDE/CodeOnGo environment used for this port, the Maven-distributed Linux AAPT2 executable failed to launch (`Syntax error` / `Exec format error`). The working device SDK binary was `\u0024HOME/android-sdk/build-tools/36.0.0/aapt2`. Keep this local-only line in `gradle.properties` for that environment (do not hard-code another device's path into the repository):
+
+   ```properties
+   android.aapt2FromMavenOverride=/data/data/com.itsaky.androidide/files/home/android-sdk/build-tools/36.0.0/aapt2
+   ```
+6. Sync the project, then run the Gradle task `:app:assembleDebug`.
 
 From the repository root, the equivalent terminal command is:
 
@@ -60,19 +65,21 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 
 ## Current Android behavior
 
-- Opens as a native Android Activity.
-- Shows a chat-style shell with Light, Dark, Red, and Green appearance themes.
-- Saves the selected appearance in app-private preferences and restores it on the next launch.
-- Updates the app background, panels, message bubbles, text, accents, and system bar icon contrast to match the selected theme.
-- Accepts text and displays it locally on screen.
-- Clearly warns that messages are not sent to an AI service.
-- Requests no microphone, storage, or network permission.
-- Does not embed API keys or copy the desktop Python runtime into the APK.
+- Opens as a native Android Activity and preserves the Light, Dark, Red, and Green appearance themes across launches.
+- The `API` header control lets the user configure a full HTTPS Chat Completions URL, model name, API key, and editable system prompt.
+- Defaults are `https://api.openai.com/v1/chat/completions` and `gpt-4.1-mini`. The default personality prompt is carried over from the original `character_config.yaml`.
+- Sends requests on a background executor and renders Chat Completions server-sent-event text deltas into the reply bubble.
+- API keys are encrypted using AES/GCM with a non-exportable AES key in Android Keystore. Only ciphertext and the IV are stored in app-private preferences. The key is never committed to Git or written to app logs.
+- Conversation turns are stored in a private SQLite database only after a successful model reply. The latest 24 messages (up to 12 complete turns) are used as context and restored in the chat UI. Failed requests remove the temporary bubbles and put the unsent text back in the composer.
+- Requests require HTTPS and the normal Android `INTERNET` permission. Cleartext traffic remains disabled.
+- Streaming replies are capped at 32,000 characters; connection and read timeouts are 20 and 120 seconds respectively.
+- The Android client currently targets the OpenAI-compatible **Chat Completions** SSE format. It does not implement the desktop Responses API, tool/function calling, image inputs, audio, or provider-specific non-Bearer authentication.
+- Voice input/output and the 3D VRM avatar remain unimplemented.
 
 ## Implementation order
 
 1. **Foundation (current):** Gradle project, Android Activity, app launch and CodeOnGo build.
-2. **Chat and model:** settings for a user-supplied model endpoint, protected credential storage using Android Keystore, bounded conversation context, streaming response handling and local chat history.
+2. **Chat and model (implementation committed; build/live API verification pending):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states.
 3. **Voice input:** Android `AudioRecord` or platform recording APIs with push-to-talk first; cloud speech recognition before considering on-device Whisper.
 4. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
 5. **Avatar:** package a tested Three.js / three-vrm web bundle locally, load it in a WebView, and bridge only the minimum required playback/expression events.
