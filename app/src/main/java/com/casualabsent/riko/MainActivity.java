@@ -311,6 +311,7 @@ public final class MainActivity extends Activity {
                 "",
                 InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD,
                 false);
+        keyField.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO);
         keyField.setHint(credentialStore.hasSecret()
                 ? "Saved securely — leave blank to keep it"
                 : "Paste your provider API key");
@@ -543,7 +544,7 @@ public final class MainActivity extends Activity {
         final String apiKey;
         try {
             apiKey = credentialStore.getSecret();
-        } catch (GeneralSecurityException | IOException error) {
+        } catch (GeneralSecurityException | IOException | IllegalArgumentException error) {
             setStatus("SECURE KEY ERROR · REMOVE AND RE-ENTER YOUR API KEY IN SETTINGS");
             Toast.makeText(this, "Could not unlock the saved API key. Remove it and save it again.",
                     Toast.LENGTH_LONG).show();
