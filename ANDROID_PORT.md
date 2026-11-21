@@ -61,7 +61,9 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 ## Current Android behavior
 
 - Opens as a native Android Activity.
-- Shows a dark chat-style shell and build status.
+- Shows a chat-style shell with Light, Dark, Red, and Green appearance themes.
+- Saves the selected appearance in app-private preferences and restores it on the next launch.
+- Updates the app background, panels, message bubbles, text, accents, and system bar icon contrast to match the selected theme.
 - Accepts text and displays it locally on screen.
 - Clearly warns that messages are not sent to an AI service.
 - Requests no microphone, storage, or network permission.
