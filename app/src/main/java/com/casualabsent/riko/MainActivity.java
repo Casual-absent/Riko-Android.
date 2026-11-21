@@ -37,11 +37,17 @@ public final class MainActivity extends Activity {
     private static final String PREF_THEME = "selected_theme";
     private static final String PREF_ENDPOINT = "api_endpoint";
     private static final String PREF_MODEL = "api_model";
+    private static final String PREF_PROVIDER = "api_provider";
     private static final String PREF_SYSTEM_PROMPT = "system_prompt";
 
     private static final String DEFAULT_ENDPOINT =
             "https://api.openai.com/v1/chat/completions";
     private static final String DEFAULT_MODEL = "gpt-4.1-mini";
+    private static final String OPENROUTER_ENDPOINT =
+            "https://openrouter.ai/api/v1/chat/completions";
+    // This is the exact free model the user has tested successfully with Riko.
+    private static final String OPENROUTER_DEFAULT_MODEL =
+            "inclusionai/ling-3.2-flash:free";
     // Preserved from the original desktop project's character_config.yaml.
     private static final String DEFAULT_SYSTEM_PROMPT =
             "You are a helpful assistant named Riko.\n"
@@ -50,6 +56,10 @@ public final class MainActivity extends Activity {
 
     private static final String[] THEME_KEYS = {"light", "dark", "red", "green"};
     private static final String[] THEME_LABELS = {"Light", "Dark", "Red", "Green"};
+    private static final String[] PROVIDER_KEYS = {"openai", "openrouter", "custom"};
+    private static final String[] PROVIDER_LABELS = {
+            "OpenAI", "OpenRouter", "Custom OpenAI-compatible"
+    };
 
     private Palette palette;
     private String selectedTheme;
@@ -291,6 +301,43 @@ public final class MainActivity extends Activity {
         form.setPadding(dp(20), dp(8), dp(20), dp(8));
         scroll.addView(form);
 
+        final int[] selectedProvider = {
+                providerIndexForSettings(
+                        preferences.getString(PREF_ENDPOINT, DEFAULT_ENDPOINT))
+        };
+
+        TextView providerCaption = makeText("Provider preset", 12, palette.muted);
+        providerCaption.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        LinearLayout.LayoutParams providerCaptionParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        providerCaptionParams.topMargin = dp(10);
+        providerCaptionParams.bottomMargin = dp(5);
+        form.addView(providerCaption, providerCaptionParams);
+
+        TextView providerButton = makeText(
+                PROVIDER_LABELS[selectedProvider[0]], 14, palette.accent);
+        providerButton.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        providerButton.setGravity(Gravity.CENTER_VERTICAL);
+        providerButton.setPadding(dp(12), dp(10), dp(12), dp(10));
+        providerButton.setBackground(shape(palette.background, dp(12), palette.border, dp(1)));
+        providerButton.setContentDescription("Choose an AI provider preset");
+        providerButton.setFocusable(true);
+        providerButton.setClickable(true);
+        form.addView(providerButton, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48)));
+
+        TextView providerNote = makeText(
+                "A preset fills its endpoint and starter model. You can edit both below. "
+                        + "Custom keeps your current values.",
+                11,
+                palette.muted);
+        LinearLayout.LayoutParams providerNoteParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        providerNoteParams.topMargin = dp(5);
+        form.addView(providerNote, providerNoteParams);
+
         EditText endpointField = addSettingsField(
                 form,
                 "Chat Completions URL",
@@ -304,6 +351,25 @@ public final class MainActivity extends Activity {
                 preferences.getString(PREF_MODEL, DEFAULT_MODEL),
                 InputType.TYPE_CLASS_TEXT,
                 false);
+
+        providerButton.setOnClickListener(view ->
+                new AlertDialog.Builder(this)
+                        .setTitle("Provider preset")
+                        .setSingleChoiceItems(PROVIDER_LABELS, selectedProvider[0],
+                                (presetDialog, which) -> {
+                                    selectedProvider[0] = which;
+                                    if (which == 0) {
+                                        endpointField.setText(DEFAULT_ENDPOINT);
+                                        modelField.setText(DEFAULT_MODEL);
+                                    } else if (which == 1) {
+                                        endpointField.setText(OPENROUTER_ENDPOINT);
+                                        modelField.setText(OPENROUTER_DEFAULT_MODEL);
+                                    }
+                                    providerButton.setText(PROVIDER_LABELS[which]);
+                                    presetDialog.dismiss();
+                                })
+                        .setNegativeButton("Cancel", null)
+                        .show());
 
         EditText keyField = addSettingsField(
                 form,
@@ -372,6 +438,7 @@ public final class MainActivity extends Activity {
                     preferences.edit()
                             .putString(PREF_ENDPOINT, endpoint)
                             .putString(PREF_MODEL, model)
+                            .putString(PREF_PROVIDER, PROVIDER_KEYS[selectedProvider[0]])
                             .putString(PREF_SYSTEM_PROMPT, systemPrompt)
                             .apply();
 
@@ -431,6 +498,29 @@ public final class MainActivity extends Activity {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 multiline ? dp(112) : dp(48)));
         return field;
+    }
+
+    private int providerIndexForSettings(String endpoint) {
+        String savedProvider = preferences.getString(PREF_PROVIDER, "");
+        for (int i = 0; i < PROVIDER_KEYS.length; i++) {
+            if (PROVIDER_KEYS[i].equals(savedProvider)) {
+                return i;
+            }
+        }
+
+        try {
+            String host = new URL(endpoint).getHost();
+            if ("api.openai.com".equalsIgnoreCase(host)) {
+                return 0;
+            }
+            if ("openrouter.ai".equalsIgnoreCase(host)
+                    || "www.openrouter.ai".equalsIgnoreCase(host)) {
+                return 1;
+            }
+        } catch (MalformedURLException ignored) {
+            // Invalid or custom endpoints are shown as Custom.
+        }
+        return 2;
     }
 
     private String validateEndpoint(String endpoint) {
@@ -648,7 +738,9 @@ public final class MainActivity extends Activity {
         } else if (validateEndpoint(endpoint) != null) {
             setStatus("INVALID API ENDPOINT · TAP API TO FIX SETTINGS");
         } else {
-            setStatus("CONFIGURED · " + model + " · SEND A MESSAGE TO CONNECT");
+            String provider = PROVIDER_LABELS[providerIndexForSettings(endpoint)];
+            setStatus("CONFIGURED · " + provider + " · " + model
+                    + " · SEND A MESSAGE TO CONNECT");
         }
     }
 
