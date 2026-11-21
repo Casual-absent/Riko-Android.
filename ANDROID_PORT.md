@@ -1,8 +1,8 @@
 # Riko Android port
 
-## Current checkpoint: 0.2.0 — streaming AI chat (device build verification pending)
+## Current checkpoint: 0.3.0 — provider presets (device build verification pending)
 
-The 0.1.0 Android foundation and four persistent appearance themes have been installed and tested on the target Redmi phone. This revision adds a configurable OpenAI-compatible Chat Completions client with server-sent-event streaming, Android Keystore-backed API-key encryption, and bounded local conversation history. The new source has been committed to `android-port`; this revision still needs a fresh CodeOnGo build and live API test before it can be called verified. Voice input/output and the VRM avatar are not connected yet.
+The 0.1.0 Android foundation and four persistent appearance themes were installed and tested on the target Redmi phone. The 0.2.0 chat client was subsequently built and used successfully with OpenRouter; the user confirmed a live response using `inclusionai/ling-3.2-flash:free`. This 0.3.0 revision adds explicit OpenAI, OpenRouter, and Custom OpenAI-compatible provider presets. The OpenRouter preset fills the endpoint and the tested model, while both fields remain editable. The 0.3.0 source is committed to `android-port` and still needs a fresh CodeOnGo build and on-device selector test. Voice input/output and the VRM avatar are not connected yet.
 
 The original Python desktop implementation remains in the repository and is not modified by the Android application.
 
@@ -66,7 +66,7 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 ## Current Android behavior
 
 - Opens as a native Android Activity and preserves the Light, Dark, Red, and Green appearance themes across launches.
-- The `API` header control lets the user configure a full HTTPS Chat Completions URL, model name, API key, and editable system prompt.
+- The `API` header control offers OpenAI, OpenRouter, and Custom OpenAI-compatible presets. The OpenRouter preset uses `https://openrouter.ai/api/v1/chat/completions` and the tested starter model `inclusionai/ling-3.2-flash:free`; both endpoint and model remain editable. The API key and system prompt are separately configurable.
 - Defaults are `https://api.openai.com/v1/chat/completions` and `gpt-4.1-mini`. The default personality prompt is carried over from the original `character_config.yaml`.
 - Sends requests on a background executor and renders Chat Completions server-sent-event text deltas into the reply bubble.
 - API keys are encrypted using AES/GCM with a non-exportable AES key in Android Keystore. Only ciphertext and the IV are stored in app-private preferences. The key is never committed to Git or written to app logs.
@@ -79,10 +79,11 @@ A GitHub Actions workflow also assembles the debug APK on pushes and pull reques
 ## Implementation order
 
 1. **Foundation (verified on device):** Gradle project, Android Activity, app launch and CodeOnGo build.
-2. **Chat and model (implementation committed; build/live API verification pending):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states.
-3. **Voice input:** Android `AudioRecord` or platform recording APIs with push-to-talk first; cloud speech recognition before considering on-device Whisper.
-4. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
-5. **Avatar:** package a tested Three.js / three-vrm web bundle locally, load it in a WebView, and bridge only the minimum required playback/expression events.
-6. **Device tuning:** cap avatar rendering at 30 FPS, lower render pixel ratio and texture sizes, pause rendering when the Activity is hidden, and measure memory, temperature and battery use on the target handset.
+2. **Chat and model (verified by user on device):** configurable OpenAI-compatible Chat Completions URL and model, API key encryption through Android Keystore, bounded SQLite conversation history, streaming response handling, and visible connection/error states. A live OpenRouter request using the Ling 3.2 Flash free model succeeded.
+3. **Provider presets (0.3.0 implementation committed; fresh device build pending):** OpenAI, OpenRouter, and Custom OpenAI-compatible presets; provider selection fills endpoint and starter model, while retaining editable fields and secure key storage.
+4. **Voice input:** Android `AudioRecord` or platform recording APIs with push-to-talk first; cloud speech recognition before considering on-device Whisper.
+5. **Voice output:** mobile-compatible TTS endpoint with streaming/chunked playback and audio-focus handling.
+6. **Avatar:** package a tested Three.js / three-vrm web bundle locally, load it in a WebView, and bridge only the minimum required playback/expression events.
+7. **Device tuning:** cap avatar rendering at 30 FPS, lower render pixel ratio and texture sizes, pause rendering when the Activity is hidden, and measure memory, temperature and battery use on the target handset.
 
 Each stage should remain buildable before the next one is added. API credentials must be entered by the user at runtime and must never be committed to Git.
